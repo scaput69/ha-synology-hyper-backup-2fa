@@ -1,210 +1,220 @@
-# Synology Hyper Backup
+# Synology Hyper Backup pour Home Assistant
 
-This integration extends the official [Synology DSM integration](https://www.home-assistant.io/integrations/synology_dsm/) in Home Assistant to provide sensors for Hyper Backup.
+Ce dépôt est un fork de
+[`JurajNyiri/ha-synology-hyper-backup`](https://github.com/JurajNyiri/ha-synology-hyper-backup),
+une intégration personnalisée Home Assistant permettant de surveiller les
+tâches Synology Hyper Backup depuis un NAS DSM.
 
-All entities are grouped under the same device as your existing Synology DSM integration, keeping everything organized.
+L’intégration d’origine ouvrait une seconde session DSM à partir du nom
+d’utilisateur et du mot de passe récupérés dans Home Assistant. Cette méthode
+ne réutilisait pas la validation MFA/2FA de l’intégration DSM officielle et ne
+fonctionnait donc pas avec les comptes soumis à la double authentification.
 
-## Installation
+Ce fork remplace cette seconde connexion par la session déjà authentifiée de
+l’intégration Synology DSM officielle et par son jeton d’appareil MFA. Il ajoute
+également un ensemble réduit de capteurs, les traductions françaises et
+anglaises, ainsi qu’une gestion asynchrone des appels Hyper Backup.
 
-Copy contents of custom_components/synology_hyper_backup/ to custom_components/synology_hyper_backup/ in your Home Assistant config folder.
+Elle complète l’intégration officielle
+[Synology DSM](https://www.home-assistant.io/integrations/synology_dsm/) et
+rattache ses entités au même appareil dans Home Assistant.
 
-## Installation using HACS
+## Fonctionnalités
 
-Add this repository as custom repository.
+L’intégration découvre automatiquement les tâches Hyper Backup et crée cinq
+capteurs par tâche :
 
-HACS is a community store for Home Assistant. You can install [HACS](https://github.com/custom-components/hacs) and then install Synology Hyper Backup from the HACS store.
+| Capteur | Description |
+| --- | --- |
+| État de la sauvegarde | Dernier résultat : `done`, `failed`, `running`, etc. |
+| Progression | Pourcentage d’avancement pendant une sauvegarde |
+| Dernière sauvegarde réussie | Date de la dernière exécution réussie |
+| Prochaine sauvegarde | Date de la prochaine exécution programmée |
+| Vérification d’intégrité | Date de la dernière vérification réussie |
 
-## Card Example
+Le capteur d’état contient également des attributs techniques utiles : message
+et code d’erreur, identifiant de tâche, destination, type de transfert et état
+du chiffrement.
 
-<img width="793" height="198" alt="Screenshot 2025-12-29 at 02 50 15" src="https://github.com/user-attachments/assets/60853f13-4851-44f7-bfc2-5e27016ec8a2" />
+La progression affiche `Inconnu` lorsque la tâche est au repos. C’est un
+comportement normal.
 
+## Authentification et 2FA
+
+Cette version ne crée pas de deuxième connexion au NAS et ne relit pas le mot
+de passe DSM.
+
+Elle réutilise directement la session authentifiée de l’intégration officielle
+Synology DSM, y compris son jeton d’appareil. La double authentification est
+donc prise en charge par le flux OTP natif de Home Assistant.
+
+En cas d’expiration de session, l’intégration tente une reconnexion avec le
+jeton géré par Synology DSM.
+
+## Prérequis
+
+- Home Assistant 2025.8.3 ou plus récent ;
+- HACS 2.0.5 ou plus récent pour l’installation HACS ;
+- un NAS Synology accessible depuis Home Assistant ;
+- Hyper Backup installé sur le NAS ;
+- au moins une tâche Hyper Backup configurée ;
+- l’intégration officielle Synology DSM configurée, chargée et fonctionnelle.
+
+Configurez d’abord Synology DSM, y compris l’étape OTP si la 2FA est activée.
+
+## Installation avec HACS
+
+Ce dépôt doit être ajouté comme dépôt personnalisé :
+
+1. Ouvrir **HACS** dans Home Assistant.
+2. Ouvrir le menu **⋮** en haut à droite.
+3. Sélectionner **Dépôts personnalisés**.
+4. Ajouter l’adresse de ce dépôt.
+5. Choisir la catégorie **Integration**.
+6. Rechercher **Synology Hyper Backup** dans HACS.
+7. Télécharger l’intégration.
+8. Redémarrer Home Assistant.
+
+## Configuration
+
+Après le redémarrage :
+
+1. Ouvrir **Paramètres → Appareils et services**.
+2. Cliquer sur **Ajouter une intégration**.
+3. Rechercher **Synology Hyper Backup**.
+4. Sélectionner l’instance Synology DSM déjà authentifiée.
+
+Une seule configuration Hyper Backup peut être associée à chaque entrée DSM.
+
+## Installation manuelle
+
+Copier le dossier :
+
+```text
+custom_components/synology_hyper_backup
 ```
-title: Hyper Backup
-path: hyper-backup
-icon: mdi:backup-restore
-type: custom:layout-card
-layout_type: custom:grid-layout
-layout:
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr))
-  grid-auto-rows: min-content
-  grid-gap: 16px
+
+dans le dossier `custom_components` de la configuration Home Assistant, puis
+redémarrer Home Assistant.
+
+## Exemple de carte native
+
+Les identifiants d’entités dépendent du nom du NAS et des tâches. Remplacez les
+valeurs `sensor.REMPLACER_*` par les identifiants affichés dans Home Assistant.
+
+```yaml
+type: vertical-stack
 cards:
-  - type: vertical-stack
-    cards:
-      - type: custom:mushroom-template-card
-        primary: "Main: Bratislava"
-        entity: sensor.hyper_backup_REPLACE_ME_status_progress_progress
-        secondary: >-
-          {% set live =
-          states('sensor.hyper_backup_REPLACE_ME_status_progress_result')
-          %} {% set last =
-          states('sensor.hyper_backup_REPLACE_ME_last_result_last_bkp_result')
-          %} {% set stage =
-          states('sensor.hyper_backup_REPLACE_ME_status_progress_stage')
-          %} {% set progress =
-          states('sensor.hyper_backup_REPLACE_ME_status_progress_progress')
-          %}
+  - type: markdown
+    content: >-
+      {% set entity = 'sensor.REMPLACER_ETAT' %}
+      {% set result = states(entity) %}
+      ## Sauvegarde Hyper Backup
 
-          {# progress comes as string; convert safely #} {% set p = progress |
-          float(0) %}
+      {% if result in ['done', 'success', 'ok'] %}
+        🟢 **Sauvegarde réussie**
+      {% elif result in ['failed', 'error'] %}
+        🔴 **Échec de la sauvegarde**
+      {% elif result in ['running', 'backingup', 'preparing', 'starting'] %}
+        🔵 **Sauvegarde en cours**
+      {% else %}
+        ⚪ **État : {{ result }}**
+      {% endif %}
 
-          {# Consider "in progress" if live says running OR we have a progress
-          number OR a stage #} {% set in_progress = (live == 'running') or (p >
-          0) or (stage not in ['unknown','unavailable','none','None','']) %}
-
-          {% if in_progress %}
-            Running{{ "· " + stage if stage not in ['unknown','unavailable','none','None',''] else '' }}: {{ p | round(0) }}%
-          {% elif last in ['backingup','preparing','starting'] %}
-            Starting backup…
-          {% else %}
-            Last result: {{ last }}
-          {% endif %}State: {{
-          states('sensor.hyper_backup_REPLACE_ME_status_state') }} ·
-          Status: {{
-          states('sensor.hyper_backup_REPLACE_ME_status_status') }}
-        icon: >-
-          {% set st =
-          states('sensor.hyper_backup_REPLACE_ME_status_state') %} {%
-          set ss =
-          states('sensor.hyper_backup_REPLACE_ME_status_status') %} {%
-          set live =
-          states('sensor.hyper_backup_REPLACE_ME_status_progress_result')
-          %} {% set last =
-          states('sensor.hyper_backup_REPLACE_ME_last_result_last_bkp_result')
-          %} {% set stage =
-          states('sensor.hyper_backup_REPLACE_ME_status_progress_stage')
-          %} {% set prog_raw =
-          states('sensor.hyper_backup_REPLACE_ME_status_progress_progress')
-          %} {% set p = prog_raw | float(0) %}
-
-          {% set stage_ok = stage not in
-          ['unknown','unavailable','none','None',''] %} {% set prog_ok =
-          prog_raw not in ['unknown','unavailable','none','None',''] %} {% set
-          in_progress = (live == 'running') or (prog_ok and p > 0) or stage_ok
-          %}
-
-          {% if in_progress %}
-            mdi:sync
-          {% elif ss == 'waiting' %}
-            mdi:clock-outline
-          {% elif last in ['backingup','preparing','starting'] %}
-            mdi:progress-clock
-          {% elif last in ['done','success','ok'] %}
-            mdi:check-circle
-          {% elif last in ['error','failed'] %}
-            mdi:alert-circle
-          {% else %}
-            mdi:backup-restore
-          {% endif %}
-        icon_color: >-
-          {% set st =
-          states('sensor.hyper_backup_REPLACE_ME_status_state') %} {%
-          set ss =
-          states('sensor.hyper_backup_REPLACE_ME_status_status') %} {%
-          set live =
-          states('sensor.hyper_backup_REPLACE_ME_status_progress_result')
-          %} {% set last =
-          states('sensor.hyper_backup_REPLACE_ME_last_result_last_bkp_result')
-          %} {% set stage =
-          states('sensor.hyper_backup_REPLACE_ME_status_progress_stage')
-          %} {% set prog_raw =
-          states('sensor.hyper_backup_REPLACE_ME_status_progress_progress')
-          %} {% set p = prog_raw | float(0) %}
-
-          {% set stage_ok = stage not in
-          ['unknown','unavailable','none','None',''] %} {% set prog_ok =
-          prog_raw not in ['unknown','unavailable','none','None',''] %} {% set
-          in_progress = (live == 'running') or (prog_ok and p > 0) or stage_ok
-          %}
-
-          {% if in_progress %}
-            blue
-          {% elif ss == 'waiting' %}
-            grey
-          {% elif last in ['backingup','preparing','starting'] %}
-            amber
-          {% elif last in ['done','success','ok'] %}
-            green
-          {% elif last in ['error','failed'] %}
-            red
-          {% else %}
-            grey
-          {% endif %}
-        multiline_secondary: true
-        tap_action:
-          action: more-info
-      - type: grid
-        columns: 2
-        square: false
-        cards:
-          - type: custom:mushroom-entity-card
-            entity: >-
-              sensor.hyper_backup_REPLACE_ME_last_result_last_bkp_success_time
-            name: Last Sync
-            icon: mdi:clock-check-outline
-          - type: custom:mushroom-entity-card
-            entity: sensor.hyper_backup_REPLACE_ME_last_result_next_bkp_time
-            name: Next Sync
-            icon: mdi:clock-outline
-      - type: custom:mushroom-template-card
-        primary: Last Integrity Check
-        secondary: >-
-          {% set e =
-          'sensor.hyper_backup_REPLACE_ME_integrity_check_time' %} {% if
-          has_value(e) %}
-            {{ states(e) }}
-          {% else %}
-            Integrity check not completed.
-          {% endif %}
-        icon: >-
-          {% set e =
-          'sensor.hyper_backup_REPLACE_ME_integrity_check_time' %} {% if
-          has_value(e) %}
-            mdi:shield-check-outline
-          {% else %}
-            mdi:alert-circle-outline
-          {% endif %}
-        icon_color: >-
-          {% set e =
-          'sensor.hyper_backup_REPLACE_ME_integrity_check_time' %} {% if
-          has_value(e) %}
-            blue
-          {% else %}
-            red
-          {% endif %}
-        multiline_secondary: false
+      {% set error = state_attr(entity, 'error') %}
+      {% set code = state_attr(entity, 'error_code') %}
+      {% if result in ['failed', 'error'] and (error or code) %}
+        **Erreur :** {{ error or 'Erreur DSM' }}{% if code %} ({{ code }}){% endif %}
+      {% endif %}
+  - type: entities
+    show_header_toggle: false
+    entities:
+      - entity: sensor.REMPLACER_DERNIERE_REUSSITE
+        name: Dernière réussite
+        icon: mdi:clock-check-outline
+      - entity: sensor.REMPLACER_PROCHAINE_SAUVEGARDE
+        name: Prochaine sauvegarde
+        icon: mdi:clock-outline
+      - entity: sensor.REMPLACER_INTEGRITE
+        name: Vérification d’intégrité
+        icon: mdi:shield-check-outline
+      - entity: sensor.REMPLACER_PROGRESSION
+        name: Progression
+        icon: mdi:progress-clock
 ```
 
-## Authentication and 2FA
+Cette carte utilise uniquement les cartes natives de Home Assistant.
 
-This integration reuses the **authenticated session** owned by Home Assistant's
-official Synology DSM integration. It does not read the DSM password and does not
-open a second session. Two-factor authentication therefore works through the
-device token already created by the official integration's OTP flow.
+## Mise à niveau depuis les versions 0.1 ou 0.2
 
-Configure and successfully load Synology DSM first, including its OTP step, then
-add Synology Hyper Backup and select that DSM instance.
+Les anciennes versions créaient une entité pour presque chaque champ brut de
+l’API. Depuis la version 0.3, seules les cinq entités utiles sont créées.
 
-## Entities
+Après la mise à niveau, les anciennes entités non retenues deviennent
+indisponibles. Vérifiez qu’aucune automatisation ou carte ne les utilise, puis
+supprimez-les depuis **Paramètres → Appareils et services → Entités**.
 
-Version 0.3 creates five curated entities per Hyper Backup task: result,
-progress, last successful backup, next scheduled backup, and last integrity
-check. Technical fields such as the error code, target and transfer type remain
-available as attributes of the result entity instead of separate entities.
+## Dépannage
 
-After upgrading from 0.1 or 0.2, old raw-field entities that are no longer
-created become unavailable. They can be removed from Home Assistant's entity
-registry after checking that no dashboard or automation still uses them.
+### L’intégration DSM n’apparaît pas dans la liste
 
-## Prerequisites
+Vérifiez que l’intégration officielle Synology DSM est chargée. Rechargez-la si
+nécessaire avant d’ajouter Synology Hyper Backup.
 
-- A Synology NAS device properly configured and accessible
-- The official [Synology DSM integration](https://www.home-assistant.io/integrations/synology_dsm/) already set up and working in Home Assistant
-- Scheduled tasks configured in your Synology DSM Task Scheduler
+### Toutes les entités sont indisponibles
 
-## Limitations & Disclaimers
+Rechargez d’abord les deux intégrations. Si le problème persiste, consultez
+**Paramètres → Système → Journaux** et recherchez `synology_hyper_backup`.
 
-Integration code is partially based on integration https://github.com/bbckr/ha-synology-tasks (at 2025-12-28) which achieves a similar use case - synology tasks.
+### La progression est inconnue
 
-It is modified to instead get information about Hyper Backup and use library synology_api instead of direct API requests. 
-It is also very early version I put together within a few hours just to get the sensors in, breaking changes are to be expected.
+C’est normal lorsqu’aucune sauvegarde n’est active. Une valeur numérique est
+affichée pendant une exécution lorsque DSM fournit une progression.
+
+### Une tâche est en échec
+
+Ouvrez le capteur **État de la sauvegarde** et consultez ses attributs `error`
+et `error_code`. Les messages proviennent directement de l’API DSM.
+
+## Limites
+
+- Les API Hyper Backup utilisées ne sont pas officiellement documentées et
+  peuvent évoluer avec DSM ou le paquet Hyper Backup.
+- La recherche de vérification d’intégrité repose actuellement sur le message
+  anglais produit par Hyper Backup.
+- Le rafraîchissement interroge localement le NAS toutes les 60 secondes.
+- L’intégration fournit uniquement de la supervision ; elle ne lance, suspend
+  ou supprime aucune sauvegarde.
+
+## Confidentialité et sécurité
+
+Toutes les communications restent locales entre Home Assistant et le NAS.
+L’intégration ne transmet aucun identifiant à un service externe et ne stocke
+ni mot de passe ni code OTP supplémentaire.
+
+## Crédits
+
+Le code et le concept d’origine proviennent de
+[JurajNyiri/ha-synology-hyper-backup](https://github.com/JurajNyiri/ha-synology-hyper-backup).
+
+Comme indiqué par son auteur, cette intégration était elle-même partiellement
+basée sur
+[bbckr/ha-synology-tasks](https://github.com/bbckr/ha-synology-tasks), dans sa
+version consultée le 28 décembre 2025. Ce projet poursuit un objectif similaire
+pour la supervision des tâches Synology dans Home Assistant.
+
+La chaîne de filiation du code est donc :
+
+```text
+bbckr/ha-synology-tasks
+  └── JurajNyiri/ha-synology-hyper-backup
+        └── scaput69/ha-synology-hyper-backup-2fa
+```
+
+Ce fork conserve la licence MIT et l’attribution au projet original. Les
+modifications propres à ce dépôt concernent principalement la compatibilité
+MFA/2FA, l’utilisation de la session DSM partagée, le modèle d’entités et la
+documentation.
+
+Licence MIT. Ce projet communautaire n’est affilié ni à Synology ni à Home
+Assistant.
