@@ -185,6 +185,17 @@ device token already created by the official integration's OTP flow.
 Configure and successfully load Synology DSM first, including its OTP step, then
 add Synology Hyper Backup and select that DSM instance.
 
+## Entities
+
+Version 0.3 creates five curated entities per Hyper Backup task: result,
+progress, last successful backup, next scheduled backup, and last integrity
+check. Technical fields such as the error code, target and transfer type remain
+available as attributes of the result entity instead of separate entities.
+
+After upgrading from 0.1 or 0.2, old raw-field entities that are no longer
+created become unavailable. They can be removed from Home Assistant's entity
+registry after checking that no dashboard or automation still uses them.
+
 ## Prerequisites
 
 - A Synology NAS device properly configured and accessible

@@ -1,13 +1,24 @@
-"""Support for Synology DSM Task sensors."""
+"""Curated sensors for Synology Hyper Backup tasks."""
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
 
-from homeassistant.const import STATE_UNKNOWN
-from homeassistant.components.sensor import SensorEntity
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
+
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONFIG_DEVICE_IDENTIFIERS,
@@ -18,62 +29,160 @@ from .const import (
     DOMAIN,
 )
 from .coordinator import SynologyTasksCoordinator
-from .key_overrides import KEY_OVERRIDES, KeyOverride
-
-if TYPE_CHECKING:
-    from datetime import datetime
-
-    from homeassistant.config_entries import ConfigEntry
-    from homeassistant.helpers.entity_platform import AddEntitiesCallback
-    from homeassistant.helpers.typing import StateType
 
 
-class SynologyTaskSensor(CoordinatorEntity[SynologyTasksCoordinator], SensorEntity):
-    """Representation of a Synology task sensor."""
+@dataclass(frozen=True, kw_only=True)
+class HyperBackupSensorDescription(SensorEntityDescription):
+    """Describe a curated Hyper Backup sensor."""
+
+    source_key: str
+    value_fn: Callable[[dict[str, Any]], Any]
+    attributes_fn: Callable[[dict[str, Any]], dict[str, Any]] | None = None
+
+
+def _parse_dsm_datetime(value: Any) -> datetime | None:
+    """Convert a DSM local date string to an aware datetime."""
+    if not isinstance(value, str) or not value:
+        return None
+
+    for date_format in ("%Y/%m/%d %H:%M:%S", "%Y/%m/%d %H:%M"):
+        try:
+            parsed = datetime.strptime(value, date_format)
+            return parsed.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
+        except ValueError:
+            continue
+    return None
+
+
+def _result_value(task: dict[str, Any]) -> str | None:
+    """Prefer a live running state, otherwise return the last result."""
+    live_result = task.get("status_progress_result")
+    if live_result and live_result not in ("none", "unknown"):
+        return str(live_result)
+    result = task.get("last_result_last_bkp_result")
+    return str(result) if result not in (None, "") else None
+
+
+def _result_attributes(task: dict[str, Any]) -> dict[str, Any]:
+    """Expose technical details on the main result sensor."""
+    attribute_keys = {
+        "task_id": "task_id",
+        "state": "status_state",
+        "status": "status_status",
+        "error": "last_result_last_bkp_error",
+        "error_code": "last_result_last_bkp_error_code",
+        "started_at": "last_result_last_bkp_time",
+        "ended_at": "last_result_last_bkp_end_time",
+        "target_id": "target_id",
+        "target_type": "target_type",
+        "transfer_type": "transfer_type",
+        "encrypted": "data_enc",
+    }
+    return {
+        attribute: task[source]
+        for attribute, source in attribute_keys.items()
+        if task.get(source) not in (None, "", "unknown")
+    }
+
+
+SENSOR_DESCRIPTIONS: tuple[HyperBackupSensorDescription, ...] = (
+    HyperBackupSensorDescription(
+        key="result",
+        source_key="last_result_last_bkp_result",
+        translation_key="result",
+        icon="mdi:backup-restore",
+        value_fn=_result_value,
+        attributes_fn=_result_attributes,
+    ),
+    HyperBackupSensorDescription(
+        key="progress",
+        source_key="status_progress_progress",
+        translation_key="progress",
+        native_unit_of_measurement=PERCENTAGE,
+        icon="mdi:progress-clock",
+        value_fn=lambda task: _numeric_value(task.get("status_progress_progress")),
+    ),
+    HyperBackupSensorDescription(
+        key="last_success",
+        source_key="last_result_last_bkp_success_time",
+        translation_key="last_success",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        value_fn=lambda task: _parse_dsm_datetime(
+            task.get("last_result_last_bkp_success_time")
+        ),
+    ),
+    HyperBackupSensorDescription(
+        key="next_backup",
+        source_key="last_result_next_bkp_time",
+        translation_key="next_backup",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        value_fn=lambda task: _parse_dsm_datetime(
+            task.get("last_result_next_bkp_time")
+        ),
+    ),
+    HyperBackupSensorDescription(
+        key="integrity_check",
+        source_key="integrity_check_time",
+        translation_key="integrity_check",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:shield-check-outline",
+        value_fn=lambda task: _parse_dsm_datetime(task.get("integrity_check_time")),
+        attributes_fn=lambda task: {
+            key: value
+            for key, value in {
+                "event": task.get("integrity_check_event"),
+                "level": task.get("integrity_check_level"),
+                "user": task.get("integrity_check_user"),
+            }.items()
+            if value not in (None, "")
+        },
+    ),
+)
+
+
+def _numeric_value(value: Any) -> int | float | None:
+    """Convert an API value to a Home Assistant numeric state."""
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return value
+    if isinstance(value, str):
+        try:
+            number = float(value)
+        except ValueError:
+            return None
+        return int(number) if number.is_integer() else number
+    return None
+
+
+class SynologyHyperBackupSensor(
+    CoordinatorEntity[SynologyTasksCoordinator], SensorEntity
+):
+    """Representation of one curated Hyper Backup sensor."""
+
+    entity_description: HyperBackupSensorDescription
 
     def __init__(
         self,
-        name: str,
-        key: str,
-        task: dict,
+        task: dict[str, Any],
+        description: HyperBackupSensorDescription,
         coordinator: SynologyTasksCoordinator,
         config_entry: ConfigEntry,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
+        self.entity_description = description
+        self._task_id = task.get("task_id")
+        task_name = str(task.get("name", self._task_id or "Unknown"))
 
-        # Keep the historical ID format so existing HACS installations do not
-        # create duplicate entities after upgrading to the shared-session build.
-        task_name_id = name.lower().replace(" ", "_")
-        self._attr_unique_id = f"{task_name_id}_{key}"
-        self.task = task
-        self.key = key
+        # Preserve the old useful entity IDs from versions 0.1/0.2.
+        task_name_id = task_name.lower().replace(" ", "_")
+        self._attr_unique_id = f"{task_name_id}_{description.source_key}"
+        self._attr_translation_placeholders = {"task_name": task_name}
+        self._attr_has_entity_name = True
 
-        override: KeyOverride | None = KEY_OVERRIDES.get(key)
-        self._numeric_expected = (
-            override.numeric
-            if override and override.numeric is not None
-            else self._is_numeric(task.get(key))
-        )
-        self._attr_name = (
-            f"Hyper Backup: {name} - {override.name}"
-            if override and override.name
-            else f"Hyper Backup: {name} - {key}"
-        )
-        if override:
-            if override.unit:
-                self._attr_native_unit_of_measurement = override.unit
-            if override.state_class:
-                self._attr_state_class = override.state_class
-            if override.device_class:
-                self._attr_device_class = override.device_class
-
-        # Set device info from the Synology DSM device
-        if config_entry.data.get(CONFIG_DEVICE_IDENTIFIERS):
-            identifiers = {
-                tuple(identifier)
-                for identifier in config_entry.data[CONFIG_DEVICE_IDENTIFIERS]
-            }
+        if identifiers_data := config_entry.data.get(CONFIG_DEVICE_IDENTIFIERS):
+            identifiers = {tuple(identifier) for identifier in identifiers_data}
             self._attr_device_info = DeviceInfo(
                 identifiers=identifiers,
                 name=config_entry.data.get(CONFIG_DEVICE_NAME),
@@ -82,84 +191,32 @@ class SynologyTaskSensor(CoordinatorEntity[SynologyTasksCoordinator], SensorEnti
                 sw_version=config_entry.data.get(CONFIG_DEVICE_SW_VERSION),
             )
 
-        self._attr_has_entity_name = False
-
-    @property
-    def native_value(self) -> StateType:
-        """Return the state of the sensor."""
-        if not (task := self._get_task()):
-            return None
-        value = task.get(self.key)
-        if self._numeric_expected or self._is_numeric(value):
-            numeric_value = self._coerce_numeric(value)
-            if numeric_value is not None:
-                return numeric_value
-            if self._numeric_expected:
-                return None
-        # Avoid emitting non-numeric states when a numeric sensor has a unit.
-        if self._numeric_expected:
-            return None
-        if isinstance(value, str) and value.lower() == "unknown":
-            return None
-        if isinstance(value, (dict, list)):
-            # Keep state simple; detailed payload goes to attributes
-            return STATE_UNKNOWN
-        return value
-
-    @property
-    def extra_state_attributes(self) -> dict[str, str | int | bool | datetime | None]:
-        """Return the state attributes."""
-        if not (task := self._get_task()):
-            return {}
-        value = task.get(self.key)
-        if isinstance(value, dict):
-            return value
-        if isinstance(value, list):
-            return {f"{self.key}_item_{idx}": item for idx, item in enumerate(value)}
-        return {}
-
-    def _get_task(self):
-        """Get the task data from the coordinator."""
-        if not self.coordinator.data:
-            return None
+    def _task(self) -> dict[str, Any] | None:
+        """Return the current coordinator data for this task."""
+        tasks = self.coordinator.data.get("task_list", [])
         return next(
             (
                 task
-                for task in self.coordinator.data.get("task_list", [])
-                if task.get("task_id") == self.task.get("task_id")
+                for task in tasks
+                if isinstance(task, dict) and task.get("task_id") == self._task_id
             ),
             None,
         )
 
-    @staticmethod
-    def _is_numeric(value) -> bool:
-        """Check if a value is numeric or a numeric string."""
-        if isinstance(value, bool):
-            return False
-        if isinstance(value, (int, float)):
-            return True
-        if isinstance(value, str):
-            try:
-                float(value)
-                return True
-            except (TypeError, ValueError):
-                return False
-        return False
-
-    @staticmethod
-    def _coerce_numeric(value):
-        """Convert a value to int or float if possible."""
-        if isinstance(value, bool) or value is None:
+    @property
+    def native_value(self) -> Any:
+        """Return the sensor state."""
+        if (task := self._task()) is None:
             return None
-        if isinstance(value, (int, float)):
-            return value
-        if isinstance(value, str):
-            try:
-                as_float = float(value)
-                return int(as_float) if as_float.is_integer() else as_float
-            except (TypeError, ValueError):
-                return None
-        return None
+        return self.entity_description.value_fn(task)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return selected technical details."""
+        if (task := self._task()) is None:
+            return {}
+        attributes_fn = self.entity_description.attributes_fn
+        return attributes_fn(task) if attributes_fn else {}
 
 
 async def async_setup_entry(
@@ -167,52 +224,28 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the Synology task sensors."""
+    """Set up curated sensors for all discovered tasks."""
     coordinator: SynologyTasksCoordinator = hass.data[DOMAIN][entry.entry_id][
         "coordinator"
     ]
+    existing_ids: set[str] = set()
 
     @callback
-    def _create_entities(tasks: list) -> list[SynologyTaskSensor]:
-        """Create sensor entities for the tasks."""
-        entities: list[SynologyTaskSensor] = []
-
-        for task in tasks:
-            entities.extend(
-                SynologyTaskSensor(
-                    name=str(task.get("name", task.get("task_id", "Unknown"))),
-                    key=key,
-                    task=task,
-                    coordinator=coordinator,
-                    config_entry=entry,
+    def add_new_task_entities() -> None:
+        entities: list[SynologyHyperBackupSensor] = []
+        for task in coordinator.data.get("task_list", []):
+            if not isinstance(task, dict) or task.get("task_id") is None:
+                continue
+            for description in SENSOR_DESCRIPTIONS:
+                entity = SynologyHyperBackupSensor(
+                    task, description, coordinator, entry
                 )
-                for key in task
-            )
+                if entity.unique_id not in existing_ids:
+                    existing_ids.add(entity.unique_id)
+                    entities.append(entity)
 
-        return entities
+        if entities:
+            async_add_entities(entities)
 
-    task_list = coordinator.data.get("task_list", [])
-    initial_entities = _create_entities(task_list)
-
-    # Create initial entities
-    async_add_entities(initial_entities)
-
-    # Track existing entity IDs to avoid duplicates
-    existing_ids = {entity.unique_id for entity in initial_entities}
-
-    @callback
-    def _async_update_entities() -> None:
-        """Create new entities for new tasks."""
-        new_entities = []
-        current_tasks = coordinator.data.get("task_list", [])
-        current_entities = _create_entities(current_tasks)
-
-        for entity in current_entities:
-            if entity.unique_id not in existing_ids:
-                new_entities.append(entity)
-                existing_ids.add(entity.unique_id)
-
-        if new_entities:
-            async_add_entities(new_entities)
-
-    entry.async_on_unload(coordinator.async_add_listener(_async_update_entities))
+    add_new_task_entities()
+    entry.async_on_unload(coordinator.async_add_listener(add_new_task_entities))

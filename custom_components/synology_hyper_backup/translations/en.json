@@ -15,5 +15,24 @@
         "title": "Synology Hyper Backup"
       }
     }
+  },
+  "entity": {
+    "sensor": {
+      "integrity_check": {
+        "name": "{task_name} integrity check"
+      },
+      "last_success": {
+        "name": "{task_name} last successful backup"
+      },
+      "next_backup": {
+        "name": "{task_name} next backup"
+      },
+      "progress": {
+        "name": "{task_name} progress"
+      },
+      "result": {
+        "name": "{task_name} result"
+      }
+    }
   }
 }
