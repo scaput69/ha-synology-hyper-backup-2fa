@@ -1,0 +1,19 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Cette instance Synology DSM est déjà configurée.",
+      "invalid_dsm_entry": "L'intégration Synology DSM sélectionnée n'est pas chargée.",
+      "no_dsm_instances": "Configurez et chargez d'abord l'intégration Synology DSM.",
+      "unknown": "Erreur inattendue"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "dsm_entry_id": "Instance Synology DSM"
+        },
+        "description": "Sélectionnez la session Synology DSM authentifiée à utiliser pour Hyper Backup.",
+        "title": "Synology Hyper Backup"
+      }
+    }
+  }
+}
