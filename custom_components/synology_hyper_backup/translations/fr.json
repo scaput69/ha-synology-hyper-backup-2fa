@@ -18,11 +18,20 @@
   },
   "entity": {
     "sensor": {
+      "deleted_files": {
+        "name": "Fichiers supprimés — {task_name}"
+      },
       "integrity_check": {
         "name": "Dernière vérification d’intégrité — {task_name}"
       },
       "last_success": {
         "name": "Dernière sauvegarde réussie — {task_name}"
+      },
+      "modified_files": {
+        "name": "Fichiers modifiés — {task_name}"
+      },
+      "new_files": {
+        "name": "Nouveaux fichiers — {task_name}"
       },
       "next_backup": {
         "name": "Prochaine sauvegarde — {task_name}"
@@ -32,6 +41,15 @@
       },
       "result": {
         "name": "État de la sauvegarde — {task_name}"
+      },
+      "source_size": {
+        "name": "Taille de la source — {task_name}"
+      },
+      "target_size": {
+        "name": "Taille sur la destination — {task_name}"
+      },
+      "target_size_change": {
+        "name": "Croissance de la dernière version — {task_name}"
       }
     }
   }

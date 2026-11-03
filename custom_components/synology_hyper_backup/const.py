@@ -28,3 +28,5 @@ REASON_INVALID_DSM_ENTRY = "invalid_dsm_entry"
 
 # Default values
 DEFAULT_SCAN_INTERVAL = 60  # seconds
+STATISTICS_WINDOW = 35 * 24 * 60 * 60  # seconds of versions to request
+STATISTICS_RETRY_PERIOD = 15 * 60  # seconds to wait for a new version to appear
