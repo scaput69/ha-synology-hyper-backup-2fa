@@ -159,7 +159,9 @@ Cette carte utilise uniquement les cartes natives de Home Assistant.
 ## Mise à niveau depuis les versions 0.1 ou 0.2
 
 Les anciennes versions créaient une entité pour presque chaque champ brut de
-l’API. Depuis la version 0.3, seules les cinq entités utiles sont créées.
+l’API. La version 0.3 a conservé cinq capteurs essentiels par tâche. Depuis la
+version 0.4, six capteurs de statistiques de version s’y ajoutent, soit onze
+capteurs par tâche au total.
 
 Après la mise à niveau, les anciennes entités non retenues deviennent
 indisponibles. Vérifiez qu’aucune automatisation ou carte ne les utilise, puis
