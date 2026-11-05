@@ -18,11 +18,20 @@
   },
   "entity": {
     "sensor": {
+      "deleted_files": {
+        "name": "{task_name} deleted files"
+      },
       "integrity_check": {
         "name": "{task_name} integrity check"
       },
       "last_success": {
         "name": "{task_name} last successful backup"
+      },
+      "modified_files": {
+        "name": "{task_name} modified files"
+      },
+      "new_files": {
+        "name": "{task_name} new files"
       },
       "next_backup": {
         "name": "{task_name} next backup"
@@ -32,6 +41,15 @@
       },
       "result": {
         "name": "{task_name} result"
+      },
+      "source_size": {
+        "name": "{task_name} source size"
+      },
+      "target_size": {
+        "name": "{task_name} size on target"
+      },
+      "target_size_change": {
+        "name": "{task_name} last version growth"
       }
     }
   }

@@ -12,6 +12,7 @@ class SynologyHyperBackupApi:
 
     TASK_API = "SYNO.Backup.Task"
     LOG_API = "SYNO.SDS.Backup.Client.Common.Log"
+    STATISTIC_API = "SYNO.SDS.Backup.Client.Common.Statistic"
 
     def __init__(self, dsm: SynologyDSM) -> None:
         """Initialize the API adapter without creating another DSM session."""
@@ -53,6 +54,21 @@ class SynologyHyperBackupApi:
                 ),
                 "task_id": task_id,
             },
+        )
+
+    async def statistics(
+        self, task_id: int | str, start_time: int, end_time: int
+    ) -> dict[str, Any]:
+        """Return per-version source and target statistics for one task.
+
+        Times are Unix timestamps. Besides the versions inside the window, DSM
+        returns the version just before it in the *_previous_next_list keys.
+        Sizes are in KiB.
+        """
+        return await self._get(
+            self.STATISTIC_API,
+            "get",
+            {"task_id": task_id, "start_time": start_time, "end_time": end_time},
         )
 
     async def logs(

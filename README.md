@@ -21,7 +21,7 @@ rattache ses entités au même appareil dans Home Assistant.
 
 ## Fonctionnalités
 
-L’intégration découvre automatiquement les tâches Hyper Backup et crée cinq
+L’intégration découvre automatiquement les tâches Hyper Backup et crée onze
 capteurs par tâche :
 
 | Capteur | Description |
@@ -31,6 +31,17 @@ capteurs par tâche :
 | Dernière sauvegarde réussie | Date de la dernière exécution réussie |
 | Prochaine sauvegarde | Date de la prochaine exécution programmée |
 | Vérification d’intégrité | Date de la dernière vérification réussie |
+| Taille de la source | Taille des données sauvegardées dans la dernière version |
+| Taille sur la destination | Espace occupé par la sauvegarde sur la destination |
+| Croissance de la dernière version | Différence de taille sur la destination par rapport à la version précédente |
+| Nouveaux fichiers | Fichiers ajoutés dans la dernière version |
+| Fichiers modifiés | Fichiers modifiés dans la dernière version |
+| Fichiers supprimés | Fichiers supprimés dans la dernière version |
+
+Les statistiques de version proviennent de la même API que la fenêtre
+« Statistiques » de Hyper Backup. Elles ne sont relues qu’après une nouvelle
+exécution, pas à chaque rafraîchissement. Les attributs `version_time` et
+`previous_version_time` indiquent les versions comparées.
 
 Le capteur d’état contient également des attributs techniques utiles : message
 et code d’erreur, identifiant de tâche, destination, type de transfert et état
@@ -183,6 +194,8 @@ et `error_code`. Les messages proviennent directement de l’API DSM.
 - La recherche de vérification d’intégrité repose actuellement sur le message
   anglais produit par Hyper Backup.
 - Le rafraîchissement interroge localement le NAS toutes les 60 secondes.
+- La taille sur la destination ne comprend pas les instantanés que le
+  fournisseur de stockage conserve de son côté.
 - L’intégration fournit uniquement de la supervision ; elle ne lance, suspend
   ou supprime aucune sauvegarde.
 

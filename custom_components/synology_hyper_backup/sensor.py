@@ -11,9 +11,10 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
+    SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE
+from homeassistant.const import PERCENTAGE, UnitOfInformation
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -85,6 +86,62 @@ def _result_attributes(task: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _version_time(value: Any) -> datetime | None:
+    """Convert a version end time (Unix timestamp) to an aware datetime."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+        return None
+    return dt_util.utc_from_timestamp(value)
+
+
+def _version_attributes(kind: str) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    """Return the attributes describing the version a statistic belongs to."""
+
+    def attributes(task: dict[str, Any]) -> dict[str, Any]:
+        values = {
+            "version_time": _version_time(task.get(f"statistics_{kind}_version_time")),
+            "previous_version_time": _version_time(
+                task.get(f"statistics_{kind}_previous_version_time")
+            ),
+        }
+        return {key: value for key, value in values.items() if value is not None}
+
+    return attributes
+
+
+def _size_description(
+    key: str, source_key: str, suggested_unit: str
+) -> HyperBackupSensorDescription:
+    """Describe a data size statistic reported by DSM in KiB."""
+    kind = "source" if source_key.startswith("statistics_source") else "target"
+    return HyperBackupSensorDescription(
+        key=key,
+        source_key=source_key,
+        translation_key=key,
+        device_class=SensorDeviceClass.DATA_SIZE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfInformation.KIBIBYTES,
+        suggested_unit_of_measurement=suggested_unit,
+        suggested_display_precision=1,
+        value_fn=lambda task: _numeric_value(task.get(source_key)),
+        attributes_fn=_version_attributes(kind),
+    )
+
+
+def _count_description(
+    key: str, source_key: str, icon: str
+) -> HyperBackupSensorDescription:
+    """Describe a file count of the newest version."""
+    return HyperBackupSensorDescription(
+        key=key,
+        source_key=source_key,
+        translation_key=key,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon=icon,
+        value_fn=lambda task: _numeric_value(task.get(source_key)),
+        attributes_fn=_version_attributes("source"),
+    )
+
+
 SENSOR_DESCRIPTIONS: tuple[HyperBackupSensorDescription, ...] = (
     HyperBackupSensorDescription(
         key="result",
@@ -136,6 +193,24 @@ SENSOR_DESCRIPTIONS: tuple[HyperBackupSensorDescription, ...] = (
             }.items()
             if value not in (None, "")
         },
+    ),
+    _size_description(
+        "source_size", "statistics_source_size", UnitOfInformation.GIBIBYTES
+    ),
+    _size_description(
+        "target_size", "statistics_target_size", UnitOfInformation.GIBIBYTES
+    ),
+    _size_description(
+        "target_size_change",
+        "statistics_target_size_change",
+        UnitOfInformation.MEBIBYTES,
+    ),
+    _count_description("new_files", "statistics_new_count", "mdi:file-plus-outline"),
+    _count_description(
+        "modified_files", "statistics_modify_count", "mdi:file-edit-outline"
+    ),
+    _count_description(
+        "deleted_files", "statistics_delete_count", "mdi:file-remove-outline"
     ),
 )
 
