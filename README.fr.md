@@ -1,5 +1,7 @@
 # Synology Hyper Backup pour Home Assistant
 
+[English](README.md) | **Français**
+
 Ce dépôt est un fork de
 [`JurajNyiri/ha-synology-hyper-backup`](https://github.com/JurajNyiri/ha-synology-hyper-backup),
 une intégration personnalisée Home Assistant permettant de surveiller les
