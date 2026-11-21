@@ -1,224 +1,234 @@
-# Synology Hyper Backup pour Home Assistant
+# Synology Hyper Backup for Home Assistant
 
-Ce dépôt est un fork de
+**English** | [Français](README.fr.md)
+
+This repository is a fork of
 [`JurajNyiri/ha-synology-hyper-backup`](https://github.com/JurajNyiri/ha-synology-hyper-backup),
-une intégration personnalisée Home Assistant permettant de surveiller les
-tâches Synology Hyper Backup depuis un NAS DSM.
+a Home Assistant custom integration for monitoring Synology Hyper Backup tasks
+on a DSM NAS.
 
-L’intégration d’origine ouvrait une seconde session DSM à partir du nom
-d’utilisateur et du mot de passe récupérés dans Home Assistant. Cette méthode
-ne réutilisait pas la validation MFA/2FA de l’intégration DSM officielle et ne
-fonctionnait donc pas avec les comptes soumis à la double authentification.
+The original integration opened a second DSM session with the username and
+password it read from Home Assistant. That approach did not reuse the MFA/2FA
+validation of the official DSM integration, so it did not work with accounts
+that use two-factor authentication.
 
-Ce fork remplace cette seconde connexion par la session déjà authentifiée de
-l’intégration Synology DSM officielle et par son jeton d’appareil MFA. Il ajoute
-également un ensemble réduit de capteurs, les traductions françaises et
-anglaises, ainsi qu’une gestion asynchrone des appels Hyper Backup.
+This fork replaces that second connection with the already authenticated
+session of the official Synology DSM integration and its MFA device token. It
+also adds a reduced set of sensors, French and English translations, and
+asynchronous handling of the Hyper Backup calls.
 
-Elle complète l’intégration officielle
-[Synology DSM](https://www.home-assistant.io/integrations/synology_dsm/) et
-rattache ses entités au même appareil dans Home Assistant.
+It complements the official
+[Synology DSM](https://www.home-assistant.io/integrations/synology_dsm/)
+integration and attaches its entities to the same device in Home Assistant.
 
-## Fonctionnalités
+## Features
 
-L’intégration découvre automatiquement les tâches Hyper Backup et crée onze
-capteurs par tâche :
+The integration discovers Hyper Backup tasks automatically and creates eleven
+sensors per task:
 
-| Capteur | Description |
+| Sensor | Description |
 | --- | --- |
-| État de la sauvegarde | Dernier résultat : `done`, `failed`, `running`, etc. |
-| Progression | Pourcentage d’avancement pendant une sauvegarde |
-| Dernière sauvegarde réussie | Date de la dernière exécution réussie |
-| Prochaine sauvegarde | Date de la prochaine exécution programmée |
-| Vérification d’intégrité | Date de la dernière vérification réussie |
-| Taille de la source | Taille des données sauvegardées dans la dernière version |
-| Taille sur la destination | Espace occupé par la sauvegarde sur la destination |
-| Croissance de la dernière version | Différence de taille sur la destination par rapport à la version précédente |
-| Nouveaux fichiers | Fichiers ajoutés dans la dernière version |
-| Fichiers modifiés | Fichiers modifiés dans la dernière version |
-| Fichiers supprimés | Fichiers supprimés dans la dernière version |
+| Result | Last result: `done`, `failed`, `running`, etc. |
+| Progress | Completion percentage while a backup runs |
+| Last successful backup | Date of the last successful run |
+| Next backup | Date of the next scheduled run |
+| Integrity check | Date of the last successful integrity check |
+| Source size | Size of the backed-up data in the latest version |
+| Size on target | Space used by the backup on the destination |
+| Last version growth | Change in size on the destination compared with the previous version |
+| New files | Files added in the latest version |
+| Modified files | Files modified in the latest version |
+| Deleted files | Files deleted in the latest version |
 
-Les statistiques de version proviennent de la même API que la fenêtre
-« Statistiques » de Hyper Backup. Elles ne sont relues qu’après une nouvelle
-exécution, pas à chaque rafraîchissement. Les attributs `version_time` et
-`previous_version_time` indiquent les versions comparées.
+The version statistics come from the same API as the Hyper Backup
+"Statistics" window. They are only read again after a new run, not on every
+refresh. The `version_time` and `previous_version_time` attributes show which
+versions were compared.
 
-Le capteur d’état contient également des attributs techniques utiles : message
-et code d’erreur, identifiant de tâche, destination, type de transfert et état
-du chiffrement.
+The result sensor also has useful technical attributes: error message and
+code, task ID, destination, transfer type and encryption status.
 
-La progression affiche `Inconnu` lorsque la tâche est au repos. C’est un
-comportement normal.
+Progress shows `Unknown` while the task is idle. This is normal.
 
-## Authentification et 2FA
+## Authentication and 2FA
 
-Cette version ne crée pas de deuxième connexion au NAS et ne relit pas le mot
-de passe DSM.
+This version does not open a second connection to the NAS and does not read
+the DSM password again.
 
-Elle réutilise directement la session authentifiée de l’intégration officielle
-Synology DSM, y compris son jeton d’appareil. La double authentification est
-donc prise en charge par le flux OTP natif de Home Assistant.
+It reuses the authenticated session of the official Synology DSM integration
+directly, including its device token. Two-factor authentication is therefore
+supported through Home Assistant's native OTP flow.
 
-En cas d’expiration de session, l’intégration tente une reconnexion avec le
-jeton géré par Synology DSM.
+When the session expires, the integration tries to reconnect with the token
+managed by Synology DSM.
 
-## Prérequis
+## Requirements
 
-- Home Assistant 2025.8.3 ou plus récent ;
-- HACS 2.0.5 ou plus récent pour l’installation HACS ;
-- un NAS Synology accessible depuis Home Assistant ;
-- Hyper Backup installé sur le NAS ;
-- au moins une tâche Hyper Backup configurée ;
-- l’intégration officielle Synology DSM configurée, chargée et fonctionnelle.
+- Home Assistant 2025.8.3 or newer;
+- before Home Assistant 2026.11: HACS 2.0.5 or newer for the HACS installation;
+- a Synology NAS reachable from Home Assistant;
+- Hyper Backup installed on the NAS;
+- at least one configured Hyper Backup task;
+- the official Synology DSM integration configured, loaded and working.
 
-Configurez d’abord Synology DSM, y compris l’étape OTP si la 2FA est activée.
+Set up Synology DSM first, including the OTP step if 2FA is enabled.
 
-## Installation avec HACS
+## Installation from the Marketplace or HACS
 
-Ce dépôt doit être ajouté comme dépôt personnalisé :
+The integration is available in the default catalog. Since Home Assistant
+2026.11, HACS is built into Home Assistant as the **Marketplace**.
 
-1. Ouvrir **HACS** dans Home Assistant.
-2. Ouvrir le menu **⋮** en haut à droite.
-3. Sélectionner **Dépôts personnalisés**.
-4. Ajouter l’adresse de ce dépôt.
-5. Choisir la catégorie **Integration**.
-6. Rechercher **Synology Hyper Backup** dans HACS.
-7. Télécharger l’intégration.
-8. Redémarrer Home Assistant.
+### Home Assistant 2026.11 or newer
+
+1. Open **Settings → Marketplace**.
+2. Search for **Synology Hyper Backup**.
+3. Select **Install**.
+4. Follow the setup flow that opens directly.
+
+No restart is needed for a first installation from the Marketplace.
+
+### Older versions with HACS
+
+1. Open **HACS**.
+2. Search for **Synology Hyper Backup**.
+3. Download the integration.
+4. Restart Home Assistant.
+5. Open **Settings → Devices & services**.
+6. Click **Add integration**.
+7. Search for **Synology Hyper Backup** and select the DSM instance that is
+   already authenticated.
 
 ## Configuration
 
-Après le redémarrage :
+After the restart:
 
-1. Ouvrir **Paramètres → Appareils et services**.
-2. Cliquer sur **Ajouter une intégration**.
-3. Rechercher **Synology Hyper Backup**.
-4. Sélectionner l’instance Synology DSM déjà authentifiée.
+1. Open **Settings → Devices & services**.
+2. Click **Add integration**.
+3. Search for **Synology Hyper Backup**.
+4. Select the Synology DSM instance that is already authenticated.
 
-Une seule configuration Hyper Backup peut être associée à chaque entrée DSM.
+Each DSM entry can have only one Hyper Backup configuration.
 
-## Installation manuelle
+## Manual installation
 
-Copier le dossier :
+Copy the folder:
 
 ```text
 custom_components/synology_hyper_backup
 ```
 
-dans le dossier `custom_components` de la configuration Home Assistant, puis
-redémarrer Home Assistant.
+into the `custom_components` folder of your Home Assistant configuration, then
+restart Home Assistant.
 
-## Exemple de carte native
+## Example with native cards
 
-Les identifiants d’entités dépendent du nom du NAS et des tâches. Remplacez les
-valeurs `sensor.REMPLACER_*` par les identifiants affichés dans Home Assistant.
+Entity IDs depend on the names of the NAS and the tasks. Replace the
+`sensor.REPLACE_*` values with the IDs shown in Home Assistant.
 
 ```yaml
 type: vertical-stack
 cards:
   - type: markdown
     content: >-
-      {% set entity = 'sensor.REMPLACER_ETAT' %}
+      {% set entity = 'sensor.REPLACE_RESULT' %}
       {% set result = states(entity) %}
-      ## Sauvegarde Hyper Backup
+      ## Hyper Backup
 
       {% if result in ['done', 'success', 'ok'] %}
-        🟢 **Sauvegarde réussie**
+        🟢 **Backup succeeded**
       {% elif result in ['failed', 'error'] %}
-        🔴 **Échec de la sauvegarde**
+        🔴 **Backup failed**
       {% elif result in ['running', 'backingup', 'preparing', 'starting'] %}
-        🔵 **Sauvegarde en cours**
+        🔵 **Backup in progress**
       {% else %}
-        ⚪ **État : {{ result }}**
+        ⚪ **State: {{ result }}**
       {% endif %}
 
       {% set error = state_attr(entity, 'error') %}
       {% set code = state_attr(entity, 'error_code') %}
       {% if result in ['failed', 'error'] and (error or code) %}
-        **Erreur :** {{ error or 'Erreur DSM' }}{% if code %} ({{ code }}){% endif %}
+        **Error:** {{ error or 'DSM error' }}{% if code %} ({{ code }}){% endif %}
       {% endif %}
   - type: entities
     show_header_toggle: false
     entities:
-      - entity: sensor.REMPLACER_DERNIERE_REUSSITE
-        name: Dernière réussite
+      - entity: sensor.REPLACE_LAST_SUCCESS
+        name: Last success
         icon: mdi:clock-check-outline
-      - entity: sensor.REMPLACER_PROCHAINE_SAUVEGARDE
-        name: Prochaine sauvegarde
+      - entity: sensor.REPLACE_NEXT_BACKUP
+        name: Next backup
         icon: mdi:clock-outline
-      - entity: sensor.REMPLACER_INTEGRITE
-        name: Vérification d’intégrité
+      - entity: sensor.REPLACE_INTEGRITY_CHECK
+        name: Integrity check
         icon: mdi:shield-check-outline
-      - entity: sensor.REMPLACER_PROGRESSION
-        name: Progression
+      - entity: sensor.REPLACE_PROGRESS
+        name: Progress
         icon: mdi:progress-clock
 ```
 
-Cette carte utilise uniquement les cartes natives de Home Assistant.
+This example only uses Home Assistant's native cards.
 
-## Mise à niveau depuis les versions 0.1 ou 0.2
+## Upgrading from versions 0.1 or 0.2
 
-Les anciennes versions créaient une entité pour presque chaque champ brut de
-l’API. La version 0.3 a conservé cinq capteurs essentiels par tâche. Depuis la
-version 0.4, six capteurs de statistiques de version s’y ajoutent, soit onze
-capteurs par tâche au total.
+Older versions created an entity for almost every raw API field. Version 0.3
+kept five essential sensors per task. Since version 0.4, six version statistics
+sensors are added, for a total of eleven sensors per task.
 
-Après la mise à niveau, les anciennes entités non retenues deviennent
-indisponibles. Vérifiez qu’aucune automatisation ou carte ne les utilise, puis
-supprimez-les depuis **Paramètres → Appareils et services → Entités**.
+After the upgrade, the old entities that were not kept become unavailable.
+Check that no automation or card uses them, then delete them from
+**Settings → Devices & services → Entities**.
 
-## Dépannage
+## Troubleshooting
 
-### L’intégration DSM n’apparaît pas dans la liste
+### The DSM integration does not appear in the list
 
-Vérifiez que l’intégration officielle Synology DSM est chargée. Rechargez-la si
-nécessaire avant d’ajouter Synology Hyper Backup.
+Check that the official Synology DSM integration is loaded. Reload it if
+needed before adding Synology Hyper Backup.
 
-### Toutes les entités sont indisponibles
+### All entities are unavailable
 
-Rechargez d’abord les deux intégrations. Si le problème persiste, consultez
-**Paramètres → Système → Journaux** et recherchez `synology_hyper_backup`.
+Reload both integrations first. If the problem persists, open
+**Settings → System → Logs** and search for `synology_hyper_backup`.
 
-### La progression est inconnue
+### Progress is unknown
 
-C’est normal lorsqu’aucune sauvegarde n’est active. Une valeur numérique est
-affichée pendant une exécution lorsque DSM fournit une progression.
+This is normal when no backup is running. A number is shown during a run when
+DSM reports progress.
 
-### Une tâche est en échec
+### A task has failed
 
-Ouvrez le capteur **État de la sauvegarde** et consultez ses attributs `error`
-et `error_code`. Les messages proviennent directement de l’API DSM.
+Open the **Result** sensor and check its `error` and `error_code` attributes.
+The messages come directly from the DSM API.
 
-## Limites
+## Limitations
 
-- Les API Hyper Backup utilisées ne sont pas officiellement documentées et
-  peuvent évoluer avec DSM ou le paquet Hyper Backup.
-- La recherche de vérification d’intégrité repose actuellement sur le message
-  anglais produit par Hyper Backup.
-- Le rafraîchissement interroge localement le NAS toutes les 60 secondes.
-- La taille sur la destination ne comprend pas les instantanés que le
-  fournisseur de stockage conserve de son côté.
-- L’intégration fournit uniquement de la supervision ; elle ne lance, suspend
-  ou supprime aucune sauvegarde.
+- The Hyper Backup APIs used are not officially documented and may change with
+  DSM or the Hyper Backup package.
+- Finding the integrity check currently relies on the English message produced
+  by Hyper Backup.
+- The integration polls the NAS locally every 60 seconds.
+- The size on the destination does not include snapshots that the storage
+  provider keeps on its side.
+- The integration only monitors; it does not start, pause or delete any
+  backup.
 
-## Confidentialité et sécurité
+## Privacy and security
 
-Toutes les communications restent locales entre Home Assistant et le NAS.
-L’intégration ne transmet aucun identifiant à un service externe et ne stocke
-ni mot de passe ni code OTP supplémentaire.
+All communication stays local between Home Assistant and the NAS. The
+integration does not send any credentials to an external service and does not
+store any extra password or OTP code.
 
-## Crédits
+## Credits
 
-Le code et le concept d’origine proviennent de
+The original code and concept come from
 [JurajNyiri/ha-synology-hyper-backup](https://github.com/JurajNyiri/ha-synology-hyper-backup).
 
-Comme indiqué par son auteur, cette intégration était elle-même partiellement
-basée sur
-[bbckr/ha-synology-tasks](https://github.com/bbckr/ha-synology-tasks), dans sa
-version consultée le 28 décembre 2025. Ce projet poursuit un objectif similaire
-pour la supervision des tâches Synology dans Home Assistant.
+As its author notes, that integration was itself partly based on
+[bbckr/ha-synology-tasks](https://github.com/bbckr/ha-synology-tasks), in the
+version consulted on 28 December 2025. That project has a similar goal: monitoring
+Synology tasks in Home Assistant.
 
-La chaîne de filiation du code est donc :
+The code lineage is therefore:
 
 ```text
 bbckr/ha-synology-tasks
@@ -226,10 +236,9 @@ bbckr/ha-synology-tasks
         └── scaput69/ha-synology-hyper-backup-2fa
 ```
 
-Ce fork conserve la licence MIT et l’attribution au projet original. Les
-modifications propres à ce dépôt concernent principalement la compatibilité
-MFA/2FA, l’utilisation de la session DSM partagée, le modèle d’entités et la
-documentation.
+This fork keeps the MIT license and the attribution to the original project.
+The changes specific to this repository mainly concern MFA/2FA compatibility,
+the use of the shared DSM session, the entity model and the documentation.
 
-Licence MIT. Ce projet communautaire n’est affilié ni à Synology ni à Home
+MIT License. This community project is not affiliated with Synology or Home
 Assistant.
