@@ -76,14 +76,27 @@ Set up Synology DSM first, including the OTP step if 2FA is enabled.
 ## Installation from the Marketplace or HACS
 
 The integration is available in the default catalog. Since Home Assistant
-2026.11, HACS is built into Home Assistant as the **Marketplace**; on older
-versions, use HACS.
+2026.11, HACS is built into Home Assistant as the **Marketplace**.
 
-1. Open **Settings → Marketplace** (before Home Assistant 2026.11: **HACS**).
+### Home Assistant 2026.11 or newer
+
+1. Open **Settings → Marketplace**.
+2. Search for **Synology Hyper Backup**.
+3. Select **Install**.
+4. Follow the setup flow that opens directly.
+
+No restart is needed for a first installation from the Marketplace.
+
+### Older versions with HACS
+
+1. Open **HACS**.
 2. Search for **Synology Hyper Backup**.
 3. Download the integration.
 4. Restart Home Assistant.
-5. Add the integration as described under [Configuration](#configuration).
+5. Open **Settings → Devices & services**.
+6. Click **Add integration**.
+7. Search for **Synology Hyper Backup** and select the DSM instance that is
+   already authenticated.
 
 ## Configuration
 
